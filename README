@@ -1,0 +1,7 @@
+grail
+
+grail is a new web microframework for Python. It uses modern libraries and
+techniques like async/await, hyper-h2 and curio.
+
+grail is heavily inspired by flask. Like flask, grail uses jinja2 for
+templating.
