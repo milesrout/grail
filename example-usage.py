@@ -1,12 +1,26 @@
 import json
 
-from grail import Grail, request
+from grail import Grail, request, log
 
 app = Grail(__name__)
 
 @app.route('/')
 async def index():
     return 'Hello World!'
+
+users = [
+    {'name': 'Miles', 'rights': ['admin', 'user']},
+    {'name': 'Louis', 'rights': ['user']},
+]
+
+@app.route('/users/')
+async def get_users():
+    return json.dumps(users)
+
+@app.route('/users/{id}', methods=['PUT', 'GET'])
+async def get_user():
+    i = request.params.get('id', type=int) - 1
+    return json.dumps(users[i])
 
 @app.route('/login', methods=['POST', 'GET'])
 async def login():
@@ -18,15 +32,5 @@ async def login():
         else:
             error = 'Invalid username/password'
     return render_template('login.html', error=error)
-
-users = [{'name': 'Miles', 'rights': ['admin']}]
-
-@app.route('/users')
-async def get_users():
-    return json.dumps(users)
-
-@app.route('/users/{id}')
-async def get_user():
-    return json.dumps(users[request.params.get(id, type=int)])
 
 app.run_forever()
