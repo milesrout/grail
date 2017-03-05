@@ -4,18 +4,16 @@ Grail is based on curio, hyper-h2, h11 and other modern
 libraries and techniques.
 """
 
-import builtins
 import collections
 import functools
+import json
 import re
+import urllib.parse
 
 from curio.kernel import run
 from curio.local import Local
-from curio.meta import AsyncObject
 from curio.network import tcp_server
 from curio.socket import *
-import curio.ssl as ssl
-from curio.task import spawn
 
 import h11
 from http11 import Http11Connection
@@ -129,16 +127,18 @@ def redirect(url, code=302):
     assert 300 <= code <= 399
     return Response(code, headers={'location': url})
 
+def abort(code, reason=None):
+    assert 400 <= code <= 599
+    raise ResponseException(Response(code, reason=reason))
+
 class Response:
-    def __init__(self, status_code, *, headers={}, data=None, reason=None):
+    def __init__(self, status_code, *, headers=None, data=None, reason=None):
         self.status_code = status_code
-        self.headers = headers
-        if reason is None:
-            self.reason = REASONS[status_code]
-        else:
-            assert isinstance(reason, bytes)
-            self.reason = reason
+        self.headers = headers or {}
+        self.reason = reason or REASONS[status_code]
         self.data = data
+        if self.data is None:
+            self.headers['content-length'] = b'0'
 
 class HttpServer:
     def __init__(self, app, conn):
@@ -173,6 +173,8 @@ class HttpServer:
             res = await handler()
         except ArgumentError as exc:
             await self.send_response(Response(400))
+        except ResponseException as exc:
+            await self.send_response(exc.res)
         else:
             await self.handle_response(res)
 
@@ -181,20 +183,23 @@ class HttpServer:
         raise NotImplementedError(f'response: {res!r}, type: {type(res)}')
 
     @handle_response.register(Response)
-    async def _(self, res):
+    async def handle_response_Response(self, res):
         await self.send_response(res)
         if res.data is not None:
             await self.send_data(res.data.encode('utf-8'))
 
     @handle_response.register(bytes)
-    async def _(self, res):
-        await self.send_response(Response(200))
+    async def handle_response_bytes(self, res):
+        await self.send_response(Response(200,
+            headers={'content-length': len(res)}))
         await self.send_data(res)
 
     @handle_response.register(str)
-    async def _(self, res):
-        await self.send_response(Response(200))
-        await self.send_data(res.encode('utf-8'))
+    async def handle_response_str(self, res):
+        data = res.encode('utf-8')
+        await self.send_response(Response(200,
+            headers={'content-length': len(data)}))
+        await self.send_data(data)
 
     async def run(self):
         e = await self.conn.next_event()
@@ -235,3 +240,6 @@ class GrailError(Exception): pass
 class RoutingError(GrailError): pass
 class ProtocolError(GrailError): pass
 class ArgumentError(GrailError, AttributeError): pass
+class ResponseException(BaseException):
+    def __init__(self, res):
+        self.res = res

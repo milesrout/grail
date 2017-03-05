@@ -1,6 +1,5 @@
 import json
-
-from grail import Grail, request, log
+from grail import *
 
 app = Grail(__name__)
 
@@ -31,6 +30,7 @@ async def login():
             return log_me_in(request.form['username'])
         else:
             error = 'Invalid username/password'
+    abort(401)
     return render_template('login.html', error=error)
 
 app.run_forever()
