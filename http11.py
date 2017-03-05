@@ -1,13 +1,6 @@
-# HTTP/1.1-related code for Grail
-# This code uses h11 to parse HTTP/1.1.
-
-from meta import HttpConnection
-
-from curio import aopen
-
 import h11
 
-class Http11Connection(HttpConnection):
+class Http11Connection:
     """This class represents an HTTP/1.1 connection over curio.
 
     Http11Connection presents a high-level interface that abstracts away all
