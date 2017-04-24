@@ -137,7 +137,7 @@ class Response:
         self.headers = headers or {}
         self.reason = reason or REASONS[status_code]
         self.data = data
-        if self.data is None:
+        if self.data is None and 'content-length' not in headers:
             self.headers['content-length'] = b'0'
 
 class HttpServer:
@@ -198,7 +198,7 @@ class HttpServer:
     async def handle_response_str(self, res):
         data = res.encode('utf-8')
         await self.send_response(Response(200,
-            headers={'content-length': len(data)}))
+            headers={'content-length': str(len(data)).encode('utf-8')}))
         await self.send_data(data)
 
     async def run(self):
